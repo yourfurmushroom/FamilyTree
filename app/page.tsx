@@ -1,65 +1,102 @@
-import Image from "next/image";
+'use client'
+
+import dynamic from 'next/dynamic';
+import { useActionState, useState } from 'react';
+
+const FamilyGraph = dynamic(() => import("./Component/FamilyGraph"), { 
+  ssr: false,
+  loading: () => <div className="flex h-screen items-center justify-center">載入中...</div>
+});
+
+const placeHolder: FamilyTreeProps = {
+  data: {
+    nodes: [
+      { id: "grandpa", label: "阿公", gender: "male" },
+      { id: "grandma", label: "阿罵", gender: "female" },
+      { id: "father", label: "爸爸", gender: "male" },
+      { id: "me", label: "我", gender: "male" },
+      { id:"mother",label:"媽媽",gender:"female"}
+    ],
+    edges: [
+      { source: "grandpa", target: "grandma", label: "夫妻"},
+      { source: "grandpa", target: "father", label: "父子" },
+      { source: "father", target: "me", label: "父子" },
+      { source: "mother", target: "me", label: "母子" }
+    ]
+  }
+};
 
 export default function Home() {
+  const [isStarted, setIsStarted] = useState(false);
+
+  const [state, formAction, isPending] = useActionState(
+    async (prevState: FamilyTreeProps, formData: FormData) => {
+      const name = formData.get("name") as string;
+      const gender=formData.get("gender") as string;
+      const updatedNodes = prevState.data.nodes.map(n=> n.id === "me" ? { ...n, label: name, gender: gender } : n);
+
+    const updatedEdges = prevState.data.edges.map((e) => {
+      if (e.source === "father" && e.target === "me") {
+        return { 
+          ...e, 
+          label: gender === "male" ? "父子" : "父女" 
+        };
+      }
+      if (e.source === "mother" && e.target === "me") {
+        return { 
+          ...e, 
+          label: gender === "male" ? "母子" : "母女" 
+        };
+      }
+      return e;
+    });
+
+    setIsStarted(true);
+
+    return {
+      ...prevState,
+      data: {
+        nodes: updatedNodes,
+        edges: updatedEdges,
+      },
+    };
+  },
+  placeHolder
+  );
+
+  if (!isStarted) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-100">
+        <form action={formAction} className="bg-white p-10 rounded-2xl shadow-xl">
+          <h1 className="text-xl font-bold mb-4">客製化家族樹</h1>
+          <input 
+            name="name" 
+            required 
+            placeholder="請輸入您的名字" 
+            className="w-full p-2 border rounded mb-4 outline-none focus:ring-2 focus:ring-blue-400"
+          />
+          <div className=' flex justify-between'>
+            <label><input type="radio" className='' name="gender" value="male"></input>我是男生</label>
+             <label><input type="radio" className='' name="gender" value="female"></input>我是女生</label>
+          </div>
+          <button 
+            type="submit" 
+            disabled={isPending}
+            className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
+          >
+            進入系統
+          </button>
+        </form>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <div className="h-screen w-full relative">
+      <FamilyGraph data={state.data} />
+      <div className="absolute top-4 left-4 bg-white/90 p-4 rounded shadow-md border border-gray-200">
+        <h2 className="font-bold">{state.data.nodes.find((n:NodeData) => n.id === "me")?.label} 的家族圖譜</h2>
+      </div>
     </div>
   );
 }
