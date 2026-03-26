@@ -30,8 +30,10 @@ interface GameContextType {
 
 const GameContext = createContext<GameContextType | null>(null);
 
+const WS_URL = import.meta.env.VITE_WS_URL ?? `ws://${window.location.hostname}:8888`;
+
 export function GameProvider({ children }: { children: React.ReactNode }) {
-    const { connected, subscribe, send } = useWebSocket(`ws://${window.location.hostname}:8888`);
+    const { connected, subscribe, send } = useWebSocket(WS_URL);
 
     const [mode, setMode] = useState<'create' | 'join'>('create');
     const [roomCode, setRoomCode] = useState('');

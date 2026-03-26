@@ -53,8 +53,10 @@ function isGameQuestion(x: any): x is GameQuestion {
   return x && typeof x === "object" && typeof x.text === "string" && typeof x.type === "string" && Array.isArray(x.option);
 }
 
+const WS_URL = import.meta.env.VITE_WS_URL ?? `ws://${window.location.hostname}:8888`;
+
 function App() {
-  const { connected, lastMessage, send } = useWebSocket(`ws://${window.location.hostname}:8888`);
+  const { connected, lastMessage, send } = useWebSocket(WS_URL);
 
   const [screen, setScreen] = useState<Screen>("result");
   const [mode, setMode] = useState<Mode>("create");
