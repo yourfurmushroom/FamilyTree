@@ -33,6 +33,16 @@ class TreeErrorBoundary extends React.Component<
   }
 }
 
+function formatBirthday(birthday: string): string {
+  if (!birthday) return '';
+  const parts = birthday.split('-');
+  if (parts.length === 3) {
+    const [y, m, d] = parts;
+    return `${y} 年 ${parseInt(m)} 月 ${parseInt(d)} 日`;
+  }
+  return birthday;
+}
+
 // 隱形排版盒子
 const BOX_WIDTH = 220;
 const BOX_HEIGHT = 140;
@@ -165,7 +175,7 @@ export function FamilyTreeResultPage({ dataList, attrsMap, onShare, onPlayAgain 
                             height={BOX_HEIGHT}
                             renderNode={(node: any) => {
                               const name = node.displayName ?? node.id;
-                              const birthYear = node.birthday ? node.birthday.split('-')[0] : '';
+                              const displayBirthday = formatBirthday(node.birthday ?? '');
     
                               return (
                                 <div
@@ -185,7 +195,7 @@ export function FamilyTreeResultPage({ dataList, attrsMap, onShare, onPlayAgain 
                                       id: node.id,
                                       name: name,
                                       relation: node.gender === 'male' ? '男性親屬' : '女性親屬',
-                                      birthYear: birthYear,
+                                      birthday: displayBirthday,
                                     });
                                   }}
                                 >
@@ -224,8 +234,8 @@ export function FamilyTreeResultPage({ dataList, attrsMap, onShare, onPlayAgain 
             <div className="space-y-2">
               <h3 className="text-[#5C2E2E] font-bold text-lg">{selectedMembers[0].name}</h3>
               <p className="text-[#8B8278]">{selectedMembers[0].relation}</p>
-              {selectedMembers[0].birthYear && (
-                <p className="text-sm text-[#8B8278]">出生年份：{selectedMembers[0].birthYear}</p>
+              {selectedMembers[0].birthday && (
+                <p className="text-sm text-[#8B8278]">出生日期：{selectedMembers[0].birthday}</p>
               )}
             </div>
           ) : (
@@ -238,8 +248,8 @@ export function FamilyTreeResultPage({ dataList, attrsMap, onShare, onPlayAgain 
                   <div className="flex-1 min-w-0">
                     <h4 className="text-[#5C2E2E] font-bold text-sm truncate">{selectedMembers[0].name}</h4>
                     <p className="text-xs text-[#8B8278] truncate">{selectedMembers[0].relation}</p>
-                    {selectedMembers[0].birthYear && (
-                      <p className="text-xs text-[#8B8278]">{selectedMembers[0].birthYear}</p>
+                    {selectedMembers[0].birthday && (
+                      <p className="text-xs text-[#8B8278]">{selectedMembers[0].birthday}</p>
                     )}
                   </div>
                 </div>
@@ -269,8 +279,8 @@ export function FamilyTreeResultPage({ dataList, attrsMap, onShare, onPlayAgain 
                   <div className="flex-1 min-w-0">
                     <h4 className="text-[#5C2E2E] font-bold text-sm truncate">{selectedMembers[1].name}</h4>
                     <p className="text-xs text-[#8B8278] truncate">{selectedMembers[1].relation}</p>
-                    {selectedMembers[1].birthYear && (
-                      <p className="text-xs text-[#8B8278]">{selectedMembers[1].birthYear}</p>
+                    {selectedMembers[1].birthday && (
+                      <p className="text-xs text-[#8B8278]">{selectedMembers[1].birthday}</p>
                     )}
                   </div>
                 </div>

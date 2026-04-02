@@ -258,6 +258,7 @@ export default class GameFlow {
       this.room.setAttr(cousinName, "displayName", cousinName);
       state.pendingTreeQuestions.unshift(
         { id: `tree-cousin-date-${Date.now()}`, text: `${cousinName}的生日是何時？`, type: "date", option: [], slots: [], targetRelation: "未知", targetPersonName: cousinName, attrKey: "birthday" },
+        { id: `tree-cousin-gender-${Date.now()}`, text: `${cousinName}是男性還是女性？`, type: "select", option: ["男性", "女性"], slots: [], targetRelation: "未知", targetPersonName: cousinName, attrKey: "gender" }
       );
     } else if (q.attrKey) {
       let targetName = q.targetPersonName;
@@ -265,7 +266,14 @@ export default class GameFlow {
         const rels = this.room.getAllData().filter(d => d.a === player.getName() && d.relation === q.targetRelation);
         targetName = rels.length > 0 ? rels[rels.length - 1].b : `未知${q.targetRelation}_${player.getName()}`;
       }
-      this.room.setAttr(targetName, q.attrKey as any, String(rawVal));
+      
+      let attrValue = String(rawVal);
+      if (q.attrKey === "gender") {
+        if (attrValue === "男性") attrValue = "male";
+        else if (attrValue === "女性") attrValue = "female";
+      }
+      
+      this.room.setAttr(targetName, q.attrKey as any, attrValue);
     } else {
       processFormattedData({ relation: targetRelation, a: player.getName(), b: String(rawVal) });
       this.room.setAttr(String(rawVal), "displayName", String(rawVal));
@@ -280,11 +288,13 @@ export default class GameFlow {
       if (safeTrigger === "ask_child_details") {
         this.room.setAttr(String(rawVal), "rank", String(q.metadata?.rank));
         state.pendingTreeQuestions.unshift(
-          { id: `tree-child-date-${Date.now()}`, text: `${rawVal}的生日是何時？`, type: "date", option: [], slots: [], targetRelation: "兒子", targetPersonName: String(rawVal), attrKey: "birthday" }
+          { id: `tree-child-date-${Date.now()}`, text: `${rawVal}的生日是何時？`, type: "date", option: [], slots: [], targetRelation: "兒子", targetPersonName: String(rawVal), attrKey: "birthday" },
+          { id: `tree-child-gender-${Date.now()}`, text: `${rawVal}的性別是男性還是女性？`, type: "select", option: ["男性", "女性"], slots: [], targetRelation: "兒子", targetPersonName: String(rawVal), attrKey: "gender" }
         );
       } else if (safeTrigger === "ask_sibling_details") {
         state.pendingTreeQuestions.unshift(
-          { id: `tree-sibling-date-${Date.now()}`, text: `${rawVal}的生日是何時？`, type: "date", option: [], slots: [], targetRelation: "兄弟姐妹", targetPersonName: String(rawVal), attrKey: "birthday" }
+          { id: `tree-sibling-date-${Date.now()}`, text: `${rawVal}的生日是何時？`, type: "date", option: [], slots: [], targetRelation: "兄弟姐妹", targetPersonName: String(rawVal), attrKey: "birthday" },
+          { id: `tree-sibling-gender-${Date.now()}`, text: `${rawVal}的性別是男性還是女性？`, type: "select", option: ["男性", "女性"], slots: [], targetRelation: "兄弟姐妹", targetPersonName: String(rawVal), attrKey: "gender" }
         );
       } else if (safeTrigger === "ask_father_details" || safeTrigger === "ask_mother_details" || safeTrigger === "ask_spouse_details") {
         // Fallback backward-compatibility support for Father/Mother/Spouse birthday
@@ -298,6 +308,7 @@ export default class GameFlow {
       } else if (safeTrigger === "ask_uncle_details" || safeTrigger === "ask_aunt_details") {
         state.pendingTreeQuestions.unshift(
           { id: `tree-relative-date-${Date.now()}`, text: `${rawVal}的生日是何時？`, type: "date", option: [], slots: [], targetRelation: q.targetRelation, targetPersonName: String(rawVal), attrKey: "birthday" },
+          { id: `tree-relative-gender-${Date.now()}`, text: `${rawVal}的性別是男性還是女性？`, type: "select", option: ["男性", "女性"], slots: [], targetRelation: q.targetRelation, targetPersonName: String(rawVal), attrKey: "gender" },
           { id: `tree-relative-childcount-${Date.now()}`, text: `${rawVal}有幾個小孩？(表/堂兄弟)`, type: "number", option: [], slots: [], targetRelation: q.targetRelation + "小孩數量", metadata: { parentName: String(rawVal) } }
         );
       }
@@ -349,6 +360,15 @@ export default class GameFlow {
             targetRelation: "兒子",
             targetPersonName: childPlaceholder,
             attrKey: "birthday",
+          });
+          dynamicQuestions.push({
+            id: `p2-child${i}-gender-${Date.now()}`,
+            text: `性別是男性還是女性？`,
+            type: "select",
+            option: ["男性", "女性"], slots: [],
+            targetRelation: "兒子",
+            targetPersonName: childPlaceholder,
+            attrKey: "gender",
           });
         }
         state.pendingTreeQuestions.unshift(...dynamicQuestions);

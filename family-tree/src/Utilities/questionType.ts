@@ -16,6 +16,6 @@ export type GameQuestion = {
 // 前端送回 server 的通用答案
 export type GameAnswer =
   | { type: "select"; value: string }
-  | { type: "fill"; value: string }
+  | { type: "fill"; value: string; genderHint?: "male" | "female" }
   | { type: "number"; value: number | "" }
   | { type: "date"; value: string };

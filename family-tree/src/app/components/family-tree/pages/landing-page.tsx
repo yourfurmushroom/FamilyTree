@@ -54,7 +54,7 @@ export function LandingPage({ onStart, onJoin, joinError, onClearJoinError }: La
         <div className="w-full space-y-3">
           <label className="block text-[#5C2E2E] text-center font-bold">創建新遊戲</label>
           <div className="grid grid-cols-3 gap-3">
-            {[90, 120, 180].map((duration) => (
+            {[120, 180, 240].map((duration) => (
               <button
                 key={duration}
                 onClick={() => setSelectedDuration(duration)}

@@ -1,5 +1,5 @@
 // src/App.tsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import { useWebSocket } from "./Component/Websocket";
 import InputInformation from "./Component/InputInformation";
@@ -7,7 +7,7 @@ import SelectMode from "./Component/SelectMode";
 import Waiting from "./Component/Waiting";
 import AnswerField from "./Component/AnswerField";
 import Result from "./Component/Result";
-import type { GameQuestion, GameAnswer } from "./Utilities/questionType";
+import type { GameQuestion } from "./Utilities/questionType";
 import type { AttrsMap } from "./Utilities/familyTreeParser";
 import { convertAnswerToRelation } from "./Utilities/answerConverter";
 import { extractPersonsFromQuestion } from "./Utilities/questionParser";
@@ -25,53 +25,27 @@ type Data = {
   answerer: string;
 };
 
-const FAKE_DATA: Data[] = [
-  { relation: "配偶", a: "爺爺", b: "奶奶", answerer: "System" },
-  { relation: "爸爸", a: "爸爸", b: "爺爺", answerer: "System" },
-  { relation: "爸爸", a: "叔叔", b: "爺爺", answerer: "System" },
-  { relation: "配偶", a: "爸爸", b: "媽媽", answerer: "System" },
-  { relation: "配偶", a: "叔叔", b: "嬸嬸", answerer: "System" },
-  { relation: "爸爸", a: "我", b: "爸爸", answerer: "System" },
-  { relation: "爸爸", a: "妹妹", b: "爸爸", answerer: "System" },
-  { relation: "爸爸", a: "堂弟", b: "叔叔", answerer: "System" },
-  { relation: "媽媽", a: "我", b: "媽媽", answerer: "System" },
-];
-
-const FAKE_ATTRS: AttrsMap = {
-  "爺爺": { displayName: "爺爺", birthday: "1945-03-01" },
-  "奶奶": { displayName: "奶奶", birthday: "1948-07-12" },
-  "爸爸": { displayName: "爸爸", birthday: "1970-05-20" },
-  "媽媽": { displayName: "媽媽", birthday: "1972-09-10" },
-  "叔叔": { displayName: "叔叔", birthday: "1973-02-14" },
-  "嬸嬸": { displayName: "嬸嬸", birthday: "1975-11-30" },
-  "我": { displayName: "我", birthday: "2000-01-01" },
-  "妹妹": { displayName: "妹妹", birthday: "2003-06-18" },
-  "堂弟": { displayName: "堂弟", birthday: "2002-04-22" },
-};
-
-function isGameQuestion(x: any): x is GameQuestion {
-  return x && typeof x === "object" && typeof x.text === "string" && typeof x.type === "string" && Array.isArray(x.option);
-}
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? `ws://${window.location.hostname}:8888`;
 
 function App() {
-  const { connected, lastMessage, send } = useWebSocket(WS_URL);
+  const { connected, send, subscribe } = useWebSocket(WS_URL);
 
-  const [screen, setScreen] = useState<Screen>("result");
+  const [screen, setScreen] = useState<Screen>("select");
   const [mode, setMode] = useState<Mode>("create");
 
   const [userName, setUserName] = useState<string>("");
+  const userNameRef = useRef<string>("");
+  useEffect(() => { userNameRef.current = userName; }, [userName]);
   const [roomCode, setRoomCode] = useState<string>("");
   const [members, setMembers] = useState<Member[]>([]);
   const [isHost, setIsHost] = useState<boolean>(false);
 
-  // question 改成可以是 string 或 GameQuestion
   const [question, setQuestion] = useState<string | GameQuestion>("");
   const [remainingTime, setRemainingTime] = useState<number>(0);
 
-  const [dataList, setDataList] = useState<Data[]>(FAKE_DATA);
-  const [serverAttrs, setServerAttrs] = useState<AttrsMap>(FAKE_ATTRS);
+  const [dataList, setDataList] = useState<Data[]>([]);
+  const [serverAttrs, setServerAttrs] = useState<AttrsMap>({});
   
   const attrsMap: AttrsMap = useMemo(() => {
     const m: AttrsMap = { ...serverAttrs };
@@ -84,87 +58,77 @@ function App() {
   }, [members, serverAttrs]);
 
   useEffect(() => {
-    if (!lastMessage) return;
+    const unsubscribe = subscribe((raw: string) => {
+      let msg: any;
+      try { msg = JSON.parse(raw); } catch { return; }
 
-    let msg: any;
-    try {
-      msg = JSON.parse(lastMessage);
-    } catch {
-      return;
-    }
-
-    switch (msg.action) {
-      case "room_created":
-        setRoomCode(msg.roomCode);
-        setIsHost(true);
-        setMembers((msg.members ?? []).map((n: any) => ({
-          name: typeof n === "string" ? n : n.name,
-          birthday: typeof n === "string" ? "" : (n.birthday ?? "")
-        })));
-        setScreen("waiting");
-        break;
-
-      case "joined_room":
-        setRoomCode(msg.roomCode);
-        setIsHost(false);
-        setScreen("waiting");
-        break;
-
-      case "member_update":
-        if (Array.isArray(msg.members)) {
+      switch (msg.action) {
+        case "room_created":
+          setRoomCode(msg.roomCode);
+          setIsHost(true);
           setMembers(prev => {
             const prevMap = new Map(prev.map(p => [p.name, p.birthday]));
-            return msg.members.map((n: any) => {
+            return (msg.members ?? []).map((n: any) => {
               const name = typeof n === "string" ? n : n.name;
-              const birthday = typeof n === "string" ? (prevMap.get(name) ?? "") : (n.birthday ?? prevMap.get(name) ?? "");
+              const birthday = typeof n === "string"
+                ? (prevMap.get(name) ?? "")
+                : (n.birthday ?? prevMap.get(name) ?? "");
               return { name, birthday };
             });
           });
-        }
-        break;
-
-      case "host_change":
-        if (msg.newHostName === userName) {
-          setIsHost(true);
-        }
-        break;
-
-      case "game_started":
-        setScreen("playing");
-        break;
-
-      case "question":
-        setQuestion(msg.questionObj ?? msg.question ?? "");
-        break;
-
-      case "tick":
-        setRemainingTime(msg.remainingSeconds);
-        break;
-
-      case "game_ended":
-        setScreen("result");
-        setDataList(msg.data || []);
-        setServerAttrs(msg.attrs || {});
-        break;
-
-      case "data_update":
-        if (Array.isArray(msg.data)) setDataList(msg.data);
-        break;
-
-      case "new_answer":
-        if (msg.data) setDataList(prev => [...prev, msg.data]);
-        break;
-
-      case "new_attr":
-        if (msg.attrs) setServerAttrs(msg.attrs);
-        break;
-
-      case "error":
-        alert(msg.message);
-        if (screen !== "form") setScreen("select");
-        break;
-    }
-  }, [lastMessage, screen, userName]);
+          setScreen("waiting");
+          break;
+        case "joined_room":
+          setRoomCode(msg.roomCode);
+          setIsHost(false);
+          setScreen("waiting");
+          break;
+        case "member_update":
+          if (Array.isArray(msg.members)) {
+            setMembers(prev => {
+              const prevMap = new Map(prev.map(p => [p.name, p.birthday]));
+              return msg.members.map((n: any) => {
+                const name = typeof n === "string" ? n : n.name;
+                const birthday = typeof n === "string" ? (prevMap.get(name) ?? "") : (n.birthday ?? prevMap.get(name) ?? "");
+                return { name, birthday };
+              });
+            });
+          }
+          break;
+        case "host_change":
+          if (msg.newHostName === userNameRef.current) setIsHost(true);
+          break;
+        case "game_started":
+          setScreen("playing");
+          break;
+        case "question":
+          setQuestion(msg.questionObj ?? msg.question ?? "");
+          break;
+        case "tick":
+          setRemainingTime(msg.remainingSeconds);
+          break;
+        case "game_ended":
+          setScreen("result");
+          setDataList(msg.data || []);
+          setServerAttrs(msg.attrs || {});
+          break;
+        case "data_update":
+          if (Array.isArray(msg.data)) setDataList(msg.data);
+          break;
+        case "new_answer":
+          if (msg.data) setDataList(prev => [...prev, msg.data]);
+          break;
+        case "new_attr":
+          if (msg.attrs) setServerAttrs(msg.attrs);
+          break;
+        case "error":
+          alert(msg.message);
+          setScreen(prev => prev !== "form" ? "select" : prev);
+          break;
+      }
+    });
+    return unsubscribe;
+  }, [subscribe]);
 
   function reset() {
     setScreen("select");
@@ -279,6 +243,14 @@ function App() {
                         ans,
                         extractPersonsFromQuestion(question.text)
                       );
+
+                      // If a gender follow-up was answered, inject it into attrs
+                      if (ans.type === 'fill' && ans.genderHint && ans.value && ans.value !== '跳過') {
+                        const personName = String(ans.value);
+                        if (!attrs[personName]) attrs[personName] = {};
+                        (attrs[personName] as any).gender = ans.genderHint;
+                        (attrs[personName] as any).displayName = personName;
+                      }
 
                       send({
                         action: "answer",
